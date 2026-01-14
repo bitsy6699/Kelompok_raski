@@ -4,50 +4,48 @@
 #include <math.h>
 #include <stdio.h>
 
-
 // ==================== BAGIAN 1: RASKY (SETUP & LINGKUNGAN) ========================
-
 
 //konfigurasi layar
 int w = 1024;
 int h = 768;
 
 //variabel interaksi
-float busMove = 12.0f;      //translate bus
-float busRotation = 0.0f;   //rotate bus
-float treeScale = 1.0f;     //skala besar/kecil pohon
+float gerakBus = 12.0f;
+float rotasiBus = 0.0f;
+float skalaPohon = 1.0f;
 
 //variabel kamera
-float camAngle = 0.4f;     //horizontal
-float cameraY = 15.0f;      //tinggi kamera
-float camDist = 45.0f;      //jarak zoom
-float viewX = 0.0f;         //titik X
-float viewZ = 0.0f;         //titik Z
+float sudutKamera = 0.4f;
+float kameraY = 15.0f;
+float jarakKamera = 45.0f;
+float lihatX = 0.0f;
+float lihatZ = 0.0f;
 
 //anim alam
-float waterAnim = 0.0f;     
-float fireAnim = 0.0f;      
+float animasiAir = 0.0f;     
+float animasiApi = 0.0f;      
 
 //kontrol mouse
-int lastMouseX = -1;
-int lastMouseY = -1;
-int isMouseDragging = 0;
+int mouseTerakhirX = -1;
+int mouseTerakhirY = -1;
+int sedangGeserMouse = 0;
 
 //sistem cuaca
-int isSun = 1;              
-int weatherMode = 1;       
+int matahari = 1;              
+int modeCuaca = 1;       
 
 //konfigurasi partikel (Hujan/Salju)
 #define MAX_PARTICLES 300
-float particlePos[MAX_PARTICLES][3];
-float particleSpeed[MAX_PARTICLES];
+float posisiPartikel[MAX_PARTICLES][3];
+float kecepatanPartikel[MAX_PARTICLES];
 
 //konfigurasi Bintang
 #define NUM_STARS 300
-float starPos[NUM_STARS][3];
+float posisiBintang[NUM_STARS][3];
 
 //warna Bus
-float busColors[4][3] = {
+float warnaBus[4][3] = {
     {0.7f, 0.5f, 0.2f},    
     {0.15f, 0.06f, 0.1f}, 
     {1.0f, 1.0f, 1.0f},    
@@ -55,38 +53,38 @@ float busColors[4][3] = {
 };
 
 //inisialisasi data
-void initRandomObjects() {
+void inisialisasiObjekAcak() {
     srand(time(NULL));
     
     //partikel cuaca
     for (int i = 0; i < MAX_PARTICLES; i++) {
-        particlePos[i][0] = (rand() % 140) - 70;
-        particlePos[i][1] = (rand() % 50);
-        particlePos[i][2] = (rand() % 140) - 70;
-        particleSpeed[i] = 0.05 + ((rand() % 10) / 100.0);
+        posisiPartikel[i][0] = (rand() % 140) - 70;
+        posisiPartikel[i][1] = (rand() % 50);
+        posisiPartikel[i][2] = (rand() % 140) - 70;
+        kecepatanPartikel[i] = 0.05 + ((rand() % 10) / 100.0);
     }
 
     //bintang (Posisi Rendah/Horizon)
     for (int i = 0; i < NUM_STARS; i++) {
-        starPos[i][0] = (rand() % 300) - 150; 
-        starPos[i][1] = 20 + (rand() % 50); //tinggi
-        starPos[i][2] = (rand() % 300) - 150;
+        posisiBintang[i][0] = (rand() % 300) - 150; 
+        posisiBintang[i][1] = 20 + (rand() % 50);
+        posisiBintang[i][2] = (rand() % 300) - 150;
     }
 }
 
-void drawStars() {
-    if (isSun) return;
+void gambarBintang() {
+    if (matahari) return;
 
     
     glDisable(GL_LIGHTING); 
-    glDisable(GL_FOG); //matikan kabut
+    glDisable(GL_FOG);
     
     glColor3f(1.0f, 1.0f, 0.9f);
     glPointSize(7.0f);
     
     glBegin(GL_POINTS);
     for (int i = 0; i < NUM_STARS; i++) { 
-        glVertex3f(starPos[i][0], starPos[i][1], starPos[i][2]); 
+        glVertex3f(posisiBintang[i][0], posisiBintang[i][1], posisiBintang[i][2]); 
     }
     glEnd();
     
@@ -95,15 +93,15 @@ void drawStars() {
     glEnable(GL_LIGHTING);
 }
 
-void drawWeatherParticles() {
+void gambarPartikelCuaca() {
     glDisable(GL_LIGHTING);
     
-    if (weatherMode == 1) { 
+    if (modeCuaca == 1) { 
         //mode salju
         glColor3f(1.0, 1.0, 1.0);
         for (int i = 0; i < MAX_PARTICLES; i++) {
             glPushMatrix(); 
-                glTranslatef(particlePos[i][0], particlePos[i][1], particlePos[i][2]); 
+                glTranslatef(posisiPartikel[i][0], posisiPartikel[i][1], posisiPartikel[i][2]); 
                 glutSolidSphere(0.25, 8, 8); 
             glPopMatrix();
         }
@@ -113,8 +111,8 @@ void drawWeatherParticles() {
         glLineWidth(2.5f);
         glBegin(GL_LINES);
         for (int i = 0; i < MAX_PARTICLES; i++) {
-            glVertex3f(particlePos[i][0], particlePos[i][1], particlePos[i][2]);
-            glVertex3f(particlePos[i][0], particlePos[i][1] - 2.5f, particlePos[i][2]);
+            glVertex3f(posisiPartikel[i][0], posisiPartikel[i][1], posisiPartikel[i][2]);
+            glVertex3f(posisiPartikel[i][0], posisiPartikel[i][1] - 2.5f, posisiPartikel[i][2]);
         }
         glEnd(); 
         glLineWidth(1.0f);
@@ -122,11 +120,11 @@ void drawWeatherParticles() {
     glEnable(GL_LIGHTING);
 }
 
-void drawTree(float x, float z) {
+void gambarPohon(float x, float z) {
     glPushMatrix(); 
     glTranslatef(x, 0.0, z); 
     
-    float finalScale = 4.0f * treeScale; 
+    float finalScale = 4.0f * skalaPohon; 
     glScalef(finalScale, finalScale, finalScale);
     
     //batang Pohon
@@ -149,13 +147,13 @@ void drawTree(float x, float z) {
     glPopMatrix();
 }
 
-void drawEnvironment() {
+void gambarLingkungan() {
     float size = 200.0f; 
     float radiusHole = 7.0f; 
     int segments = 64;
 
     //gambar Tanah
-    if (isSun) glColor3f(0.6f, 0.85f, 1.0f); 
+    if (matahari) glColor3f(0.6f, 0.85f, 1.0f); 
     else glColor3f(0.3f, 0.3f, 0.35f);
 
     glBegin(GL_QUAD_STRIP); 
@@ -173,11 +171,11 @@ void drawEnvironment() {
     glEnable(GL_BLEND); 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
-    if (isSun) glColor4f(0.0f, 0.2f, 0.5f, 0.8f); 
+    if (matahari) glColor4f(0.0f, 0.2f, 0.5f, 0.8f); 
     else glColor4f(0.0f, 0.1f, 0.2f, 0.9f);
     
     glPushMatrix(); 
-        glTranslatef(0, -0.1f + sin(waterAnim) * 0.08f, 0); 
+        glTranslatef(0, -0.1f + sin(animasiAir) * 0.08f, 0); 
         glBegin(GL_TRIANGLE_FAN); 
             glVertex3f(0, 0, 0); 
             for (int i = 0; i <= segments; i++) { 
@@ -191,9 +189,9 @@ void drawEnvironment() {
     //pohon melingkar
     for (int i = 0; i < 60 ; i++) { 
         float angle = i * (2.0f * 3.14159f / 60); 
-        drawTree(cos(angle) * 30.0f, sin(angle) * 30.0f); 
-        drawTree(cos(angle + 0.5f) * 25.0f, sin(angle + 0.5f) * 25.0f); 
-        drawTree(cos(angle + 0.6f) * 20.0f, sin(angle + 0.6f) * 20.0f); 
+        gambarPohon(cos(angle) * 30.0f, sin(angle) * 30.0f); 
+        gambarPohon(cos(angle + 0.5f) * 25.0f, sin(angle + 0.5f) * 25.0f); 
+        gambarPohon(cos(angle + 0.6f) * 20.0f, sin(angle + 0.6f) * 20.0f); 
     }
 }
 
@@ -201,7 +199,7 @@ void drawEnvironment() {
 // ====================== BAGIAN 2: RISKY (OBJEK & MODELING) ========================
 
 
-void drawBonfire(float x, float z) {
+void gambarApiUnggun(float x, float z) {
     glPushMatrix(); 
     glTranslatef(x, 0.0f, z);
     
@@ -218,8 +216,8 @@ void drawBonfire(float x, float z) {
     }
     
     //api di malam
-    if (!isSun) {
-        float flicker = (sin(fireAnim) + 1.2f) * 0.1f; 
+    if (!matahari) {
+        float flicker = (sin(animasiApi) + 1.2f) * 0.1f; 
         glDisable(GL_LIGHTING); 
         
         //api layer 1
@@ -251,16 +249,16 @@ void drawBonfire(float x, float z) {
     glPopMatrix();
 }
 
-void drawSunMoon() {
+void gambarMatahariBulan() {
     glPushMatrix(); 
     glTranslatef(0.0, 20.0, 0.0); 
     glDisable(GL_LIGHTING); 
     
-    if (isSun) { 
-        glColor3f(1.0, 1.0, 0.6); //matahari
+    if (matahari) { 
+        glColor3f(1.0, 1.0, 0.6);
         glutSolidSphere(2.5, 40, 40); 
     } else { 
-        glColor3f(0.8, 0.8, 1.0); //bulan
+        glColor3f(0.8, 0.8, 1.0);
         glutSolidSphere(2.5, 40, 40); 
     }
     
@@ -268,7 +266,7 @@ void drawSunMoon() {
     glPopMatrix();
 }
 
-void drawTent(float x, float z, float rot, int colorType) {
+void gambarTenda(float x, float z, float rot, int colorType) {
     glPushMatrix(); 
     glTranslatef(x, 0.0f, z); 
     glRotatef(rot, 0.0f, 1.0f, 0.0f); 
@@ -320,7 +318,7 @@ void drawTent(float x, float z, float rot, int colorType) {
 }
 
 // bus
-void drawWheel(float x, float y, float z, bool isSpare = false) {
+void gambarRoda(float x, float y, float z, bool isSpare = false) {
     glPushMatrix(); 
 
     glTranslatef(x, y, z);
@@ -335,7 +333,7 @@ void drawWheel(float x, float y, float z, bool isSpare = false) {
     glPopMatrix();
 }
 
-void drawRoofCargo() {
+void gambarKargoAtap() {
     //rak besi
     glColor3f(0.2f, 0.2f, 0.2f); 
     glPushMatrix(); 
@@ -358,15 +356,15 @@ void drawRoofCargo() {
         glutSolidCube(1.0f); 
     glPopMatrix();
     //ban serep
-    drawWheel(0.5f, 1.3f, 0.4f, true);
+    gambarRoda(0.5f, 1.3f, 0.4f, true);
 }
 
-void drawCampingBus(int idx) {
+void gambarBusKemah(int idx) {
     glPushMatrix();
-    glRotatef(busRotation, 0.0f, 1.0f, 0.0f);
+    glRotatef(rotasiBus, 0.0f, 1.0f, 0.0f);
     glTranslatef(0.0f, 1.2f, 0.0f);
     //body utama
-    glColor3f(busColors[idx][0], busColors[idx][1], busColors[idx][2]);
+    glColor3f(warnaBus[idx][0], warnaBus[idx][1], warnaBus[idx][2]);
     glPushMatrix(); 
         glScalef(4.0f, 1.5f, 2.0f); 
         glutSolidCube(1.0f); 
@@ -385,7 +383,7 @@ void drawCampingBus(int idx) {
         glutSolidCube(1.0f); 
     glPopMatrix();
     //aksesoris
-    drawRoofCargo();
+    gambarKargoAtap();
     //lampu kaka
     glDisable(GL_LIGHTING); 
     glColor3f(1.0f, 0.9f, 0.6f); 
@@ -415,7 +413,7 @@ void drawCampingBus(int idx) {
         glRotatef(-110.0f, 0.0f, 0.0f, 1.0f); 
         glTranslatef(-0.05f, -0.4f, 0.0f);    
         //luarna
-        glColor3f(busColors[idx][0], busColors[idx][1], busColors[idx][2]); 
+        glColor3f(warnaBus[idx][0], warnaBus[idx][1], warnaBus[idx][2]); 
         glPushMatrix(); 
         glScalef(0.1f, 0.9f, 1.6f); 
         glutSolidCube(1.0f); 
@@ -429,10 +427,10 @@ void drawCampingBus(int idx) {
     glPopMatrix();
 
     //rodana
-    drawWheel( 1.4f, -0.5f,  1.0f); 
-    drawWheel( 1.4f, -0.5f, -1.0f);
-    drawWheel(-1.4f, -0.5f,  1.0f); 
-    drawWheel(-1.4f, -0.5f, -1.0f);
+    gambarRoda( 1.4f, -0.5f,  1.0f); 
+    gambarRoda( 1.4f, -0.5f, -1.0f);
+    gambarRoda(-1.4f, -0.5f,  1.0f); 
+    gambarRoda(-1.4f, -0.5f, -1.0f);
     
     glPopMatrix();
 }
@@ -442,21 +440,21 @@ void drawCampingBus(int idx) {
 
 
 //TAMPILAN
-void display() {
+void tampilan() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
     glLoadIdentity();
     
     //kamera
-    float camX = viewX + (camDist * sin(camAngle)); 
-    float camZ = viewZ + (camDist * cos(camAngle));
-    gluLookAt(camX, cameraY, camZ, viewX, 0.0, viewZ, 0.0, 1.0, 0.0);
+    float camX = lihatX + (jarakKamera * sin(sudutKamera)); 
+    float camZ = lihatZ + (jarakKamera * cos(sudutKamera));
+    gluLookAt(camX, kameraY, camZ, lihatX, 0.0, lihatZ, 0.0, 1.0, 0.0);
     
     //pencahayaan utama
     GLfloat light_pos0[] = { 0.0, 20.0, 0.0, 0.0 }; 
     glLightfv(GL_LIGHT0, GL_POSITION, light_pos0);
     
     //siang atau malam
-    if (isSun) {
+    if (matahari) {
         //mode siang
         glClearColor(0.8, 0.9, 1.0, 1.0); 
         GLfloat fogCol[] = {0.8f, 0.9f, 1.0f, 1.0f}; 
@@ -477,123 +475,123 @@ void display() {
     }
 
     //render obj
-    drawSunMoon(); 
-    drawStars(); 
-    drawEnvironment(); 
-    drawBonfire(10.0f, 10.0f);    
+    gambarMatahariBulan(); 
+    gambarBintang(); 
+    gambarLingkungan(); 
+    gambarApiUnggun(10.0f, 10.0f);    
     
-    drawTent(-10.0f, 10.0f, -45.0f, 0); 
-    drawTent(-10.0f, -10.0f, -135.0f, 1); 
-    drawTent(10.0f, -10.0f, 135.0f, 2);  
+    gambarTenda(-10.0f, 10.0f, -45.0f, 0); 
+    gambarTenda(-10.0f, -10.0f, -135.0f, 1); 
+    gambarTenda(10.0f, -10.0f, 135.0f, 2);  
     
     for (int i = 0; i < 4; i++) { 
         glPushMatrix(); 
             glRotatef(i * 90.0f, 0.0f, 1.0f, 0.0f); 
-            glTranslatef(busMove, 0.0f, 0.0f); 
-            drawCampingBus(i); 
+            glTranslatef(gerakBus, 0.0f, 0.0f); 
+            gambarBusKemah(i); 
         glPopMatrix(); 
     }
     
-    drawWeatherParticles(); 
+    gambarPartikelCuaca(); 
     
     glutSwapBuffers();
 }
 
-void timer(int v) {
+void pengaturWaktu(int v) {
     //anim hujan/salju
     for (int i = 0; i < MAX_PARTICLES; i++) {
-        float speed = (weatherMode == 2) ? particleSpeed[i] * 3.0f : particleSpeed[i];
-        particlePos[i][1] -= speed; 
-        if (particlePos[i][1] < 0) particlePos[i][1] = 40; 
+        float speed = (modeCuaca == 2) ? kecepatanPartikel[i] * 3.0f : kecepatanPartikel[i];
+        posisiPartikel[i][1] -= speed; 
+        if (posisiPartikel[i][1] < 0) posisiPartikel[i][1] = 40; 
     }
     
-    waterAnim += 0.08f; 
-    fireAnim += 0.2f; 
+    animasiAir += 0.08f; 
+    animasiApi += 0.2f; 
     
     glutPostRedisplay(); 
-    glutTimerFunc(20, timer, 0);
+    glutTimerFunc(20, pengaturWaktu, 0);
 }
 
-void keyboard(unsigned char key, int x, int y) {
+void inputKeyboard(unsigned char key, int x, int y) {
     switch (key) {
         //komtrol bus
         case 'w':
-            busMove -= 0.5f; 
-            if(busMove < 9.0f) busMove = 9.0f; 
+            gerakBus -= 0.5f; 
+            if(gerakBus < 9.0f) gerakBus = 9.0f; 
             break; 
         case 's': 
-            busMove += 0.5f; 
+            gerakBus += 0.5f; 
             break; 
         case 'a': 
-            busRotation += 5.0f; 
+            rotasiBus += 5.0f; 
             break; 
         case 'd': 
-            busRotation -= 5.0f; 
+            rotasiBus -= 5.0f; 
             break;
         //komtrol poohon
         case 'r': 
-            treeScale += 0.1f; 
-            if(treeScale > 3.0f) treeScale = 3.0f; 
+            skalaPohon += 0.1f; 
+            if(skalaPohon > 3.0f) skalaPohon = 3.0f; 
             break; 
         case 't': 
-            treeScale -= 0.1f; 
-            if(treeScale < 0.2f) treeScale = 0.2f; 
+            skalaPohon -= 0.1f; 
+            if(skalaPohon < 0.2f) skalaPohon = 0.2f; 
             break; 
         //kontrol lingkungan
         case 'm': 
-            isSun = !isSun; 
+            matahari = !matahari; 
             break; 
         case 'n': 
-            weatherMode = (weatherMode == 1) ? 2 : 1; 
+            modeCuaca = (modeCuaca == 1) ? 2 : 1; 
             break; 
         
         case 27: 
             exit(0); 
-            break; // esc
+            break;
     }
     glutPostRedisplay();
 }
 
-void special(int key, int x, int y) {
+void tombolSpesial(int key, int x, int y) {
     float moveSpeed = 1.0f;
-    if (key == GLUT_KEY_UP) viewZ -= moveSpeed; 
-    if (key == GLUT_KEY_DOWN) viewZ += moveSpeed;  
-    if (key == GLUT_KEY_LEFT) viewX -= moveSpeed; 
-    if (key == GLUT_KEY_RIGHT) viewX += moveSpeed; 
+    if (key == GLUT_KEY_UP) lihatZ -= moveSpeed; 
+    if (key == GLUT_KEY_DOWN) lihatZ += moveSpeed;  
+    if (key == GLUT_KEY_LEFT) lihatX -= moveSpeed; 
+    if (key == GLUT_KEY_RIGHT) lihatX += moveSpeed; 
     glutPostRedisplay();
 }
 
-//interaski mouse
-void mouseClick(int button, int state, int x, int y) { 
+//interaksi mouse
+void klikMouse(int button, int state, int x, int y) { 
     if (state == GLUT_UP) return; 
     //scroll zoom
-    if (button == 3) { //scroll atas
-        camDist -= 2.0f; 
-        if (camDist < 5.0f) camDist = 5.0f; 
+    if (button == 3) {
+        jarakKamera -= 2.0f; 
+        if (jarakKamera < 5.0f) jarakKamera = 5.0f; 
     } 
-    else if (button == 4) { //scroll bawah
-        camDist += 2.0f; 
-        if (camDist > 100.0f) camDist = 100.0f; 
+    else if (button == 4) {
+        jarakKamera += 2.0f; 
+        if (jarakKamera > 100.0f) jarakKamera = 100.0f; 
     }
     //drag cenah
     else if (button == GLUT_LEFT_BUTTON) { 
-        isMouseDragging = (state == GLUT_DOWN); 
-        lastMouseX = x; 
-        lastMouseY = y; 
+        sedangGeserMouse = (state == GLUT_DOWN); 
+        mouseTerakhirX = x; 
+        mouseTerakhirY = y; 
     } 
     glutPostRedisplay();
 }
 
-void mouseMotion(int x, int y) { 
-    if (isMouseDragging) { 
-        camAngle += (x - lastMouseX) * 0.005f; 
-        cameraY -= (y - lastMouseY) * 0.2f;    
+void gerakMouse(int x, int y) { 
+    if (sedangGeserMouse) { 
+        sudutKamera += (x - mouseTerakhirX) * 0.005f; 
+        kameraY -= (y - mouseTerakhirY) * 0.2f;    
         //batas verti
-        if (cameraY < 2.0f) cameraY = 2.0f;    
-        if (cameraY > 60.0f) cameraY = 60.0f; 
+        if (kameraY < 2.0f) kameraY = 2.0f;    
+        if (kameraY > 60.0f) kameraY = 60.0f; 
 
-        lastMouseX = x; 
-        lastMouseY = y; 
+        mouseTerakhirX = x; 
+        mouseTerakhirY = y; 
         glutPostRedisplay(); 
     } 
 }
@@ -611,10 +609,10 @@ void init() {
     glFogi(GL_FOG_MODE, GL_EXP2); 
     glFogf(GL_FOG_DENSITY, 0.01f); 
     
-    initRandomObjects(); 
+    inisialisasiObjekAcak(); 
 }
 
-void reshape(int w1, int h1) { 
+void ubahUkuran(int w1, int h1) { 
     glViewport(0, 0, w1, h1); 
     glMatrixMode(GL_PROJECTION); 
     glLoadIdentity(); 
@@ -630,13 +628,13 @@ int main(int argc, char **argv) {
     glutFullScreen();
     
     init();
-    glutDisplayFunc(display); 
-    glutReshapeFunc(reshape); 
-    glutKeyboardFunc(keyboard); 
-    glutSpecialFunc(special); 
-    glutMouseFunc(mouseClick); 
-    glutMotionFunc(mouseMotion); 
-    glutTimerFunc(20, timer, 0); 
+    glutDisplayFunc(tampilan); 
+    glutReshapeFunc(ubahUkuran); 
+    glutKeyboardFunc(inputKeyboard); 
+    glutSpecialFunc(tombolSpesial); 
+    glutMouseFunc(klikMouse); 
+    glutMotionFunc(gerakMouse); 
+    glutTimerFunc(20, pengaturWaktu, 0); 
     
     glutMainLoop(); 
     return 0;
